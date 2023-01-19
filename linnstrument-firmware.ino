@@ -283,8 +283,8 @@ byte sensorSplit = 0;                       // the split of the currently read t
 
 // The most-recently touched cell within each channel of each split is said to have "focus",
 // saved as the specific column and row for the focus cell.
-// If in 1Ch/Poly mode, continuous X and Y messages are sent only from movements within the focused cell.
-// If in 1Ch/Chan mode, continuous X, Y and Z messages are sent only from movements within the focused cell.
+// If in 1Ch/PolyAT mode, continuous X and Y messages are sent only from movements within the focused cell.
+// If in 1Ch/ChanAT mode, continuous X, Y and Z messages are sent only from movements within the focused cell.
 struct __attribute__ ((packed)) FocusCell {
   byte col:5;
   byte row:3;

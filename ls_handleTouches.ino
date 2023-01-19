@@ -538,6 +538,13 @@ boolean isZExpressiveCell() {
   }
 }
 
+// Individually expressive notes on the same channel
+// only when there's just one note, or using PolyAT
+boolean hasZExpressiveNotes() {
+  return ((countTouchesForMidiChannel(sensorSplit, sensorCol, sensorRow) == 1) ||
+    (Split[sensorSplit].expressionForZ == loudnessPolyPressure));
+}
+
 byte takeChannel(byte split, byte row) {
   switch (Split[split].midiMode)
   {
@@ -1242,7 +1249,7 @@ void sendNewNote() {
 
     // reset pressure to 0 before sending the note, the actually pressure value will
     // be sent right after the note on
-    if (Split[sensorSplit].sendZ && isZExpressiveCell()) {
+    if (Split[sensorSplit].sendZ && hasZExpressiveNotes()) {
       preSendLoudness(sensorSplit, 0, 0, sensorCell->note, sensorCell->channel);
     }
 
@@ -1728,7 +1735,7 @@ void handleTouchRelease() {
   else if (sensorCell->hasNote()) {
 
     // reset the pressure when the note is released and that setting is active
-    if (Split[sensorSplit].sendZ && isZExpressiveCell()) {
+    if (Split[sensorSplit].sendZ && hasZExpressiveNotes()) {
       preSendLoudness(sensorSplit, 0, 0, sensorCell->note, sensorCell->channel);
     }
 

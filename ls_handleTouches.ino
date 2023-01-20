@@ -1045,8 +1045,59 @@ boolean handleXYZupdate() {
 
       // if sensing Z is enabled...
       // send different pressure update depending on midiMode
-      if (Split[sensorSplit].sendZ && isZExpressiveCell()) {
-        preSendLoudness(sensorSplit, valueZ, valueZHi, sensorCell->note, sensorCell->channel);
+      if (Split[sensorSplit].sendZ) {
+        if (hasZExpressiveNotes()) {
+          preSendLoudness(sensorSplit, valueZ, valueZHi, sensorCell->note, sensorCell->channel);
+        }
+        // Check all notes, not just the last played one (focused)
+        else {
+          // Only send this value if it's the highest on this channel
+          unsigned short maxLoudnessHi = 0;
+          unsigned short curLoudnessHi = 0;
+
+          // iterate over all the rows...
+          byte beginRow = 0;
+          byte endRow = NUMROWS;
+          // ...or just this one when in ChannelPerRow mode
+          if (Split[sensorSplit].midiMode == channelPerRow) {
+            beginRow = sensorRow;
+            endRow = sensorRow + 1;
+          }
+
+          int32_t colsInRowTouched = 0;
+          for (byte row = beginRow; row < endRow; ++row) {
+            colsInRowTouched = colsInRowsTouched[row];
+
+            // exclude the current sensor
+            if (row == sensorRow) {
+              colsInRowTouched = colsInRowTouched & ~(1 << sensorCol);
+            }
+
+            // continue while there are touched columns in the row
+            while (colsInRowTouched) {
+              byte touchedCol = 31 - __builtin_clz(colsInRowTouched);
+
+              // compare the Z value of the cell to the current maximum if the cell
+              // is on the same channel
+              curLoudnessHi = cell(touchedCol, row).pressureZ;
+              if (cell(touchedCol, row).touched == touchedCell &&
+                  cell(touchedCol, row).channel == sensorCell->channel &&
+                  curLoudnessHi != INVALID_DATA) {
+
+                if (curLoudnessHi > maxLoudnessHi) {
+                  maxLoudnessHi = curLoudnessHi;
+                }
+              }
+
+              // exclude the cell we just processed by flipping its bit
+              colsInRowTouched &= ~(1 << touchedCol);
+            }
+          }
+
+          if (valueZHi > maxLoudnessHi) {
+            preSendLoudness(sensorSplit, valueZ, valueZHi, sensorCell->note, sensorCell->channel);
+          }
+        }
       }
 
       // after the initial velocity, new velocity values are continuously being calculated simply based

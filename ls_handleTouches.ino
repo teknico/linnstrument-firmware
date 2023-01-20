@@ -540,6 +540,13 @@ boolean isZExpressiveCell() {
 
 // Individually expressive notes on the same channel
 // only when there's just one note, or using PolyAT
+boolean hasYExpressiveNotes() {
+  return ((countTouchesForMidiChannel(sensorSplit, sensorCol, sensorRow) == 1) ||
+    (Split[sensorSplit].expressionForY == timbrePolyPressure));
+}
+
+// Individually expressive notes on the same channel
+// only when there's just one note, or using PolyAT
 boolean hasZExpressiveNotes() {
   return ((countTouchesForMidiChannel(sensorSplit, sensorCol, sensorRow) == 1) ||
     (Split[sensorSplit].expressionForZ == loudnessPolyPressure));
@@ -1022,9 +1029,59 @@ boolean handleXYZupdate() {
 
       // if Y-axis movements are enabled and it's a candidate for
       // X/Y expression based on the MIDI mode and the currently held down cells
-      if (valueY != INVALID_DATA &&
-          Split[sensorSplit].sendY && isYExpressiveCell()) {
-        preSendTimbre(sensorSplit, valueY, sensorCell->note, sensorCell->channel);
+      if (Split[sensorSplit].sendY) {
+        if (hasYExpressiveNotes()) {
+          preSendTimbre(sensorSplit, valueY, sensorCell->note, sensorCell->channel);
+        }
+        // Check all notes, not just the last played one (focused)
+        else {
+          // Only send this value if it's the highest on this channel
+          unsigned short maxTimbre = 0;
+          unsigned short curTimbre = 0;
+
+          // iterate over all the rows...
+          byte beginRow = 0;
+          byte endRow = NUMROWS;
+          // ...or just this one when in ChannelPerRow mode
+          if (Split[sensorSplit].midiMode == channelPerRow) {
+            beginRow = sensorRow;
+            endRow = sensorRow + 1;
+          }
+
+          int32_t colsInRowTouched = 0;
+          for (byte row = beginRow; row < endRow; ++row) {
+            colsInRowTouched = colsInRowsTouched[row];
+
+            // exclude the current sensor
+            if (row == sensorRow) {
+              colsInRowTouched = colsInRowTouched & ~(1 << sensorCol);
+            }
+
+            // continue while there are touched columns in the row
+            while (colsInRowTouched) {
+              byte touchedCol = 31 - __builtin_clz(colsInRowTouched);
+
+              // compare the Y value of the cell to the current maximum if the cell
+              // is on the same channel
+              curTimbre = cell(touchedCol, row).calibratedY();
+              if (cell(touchedCol, row).touched == touchedCell &&
+                  cell(touchedCol, row).channel == sensorCell->channel &&
+                  curTimbre != INVALID_DATA) {
+
+                if (curTimbre > maxTimbre) {
+                  maxTimbre = curTimbre;
+                }
+              }
+
+              // exclude the cell we just processed by flipping its bit
+              colsInRowTouched &= ~(1 << touchedCol);
+            }
+          }
+
+          if (valueY > maxTimbre) {
+            preSendTimbre(sensorSplit, valueY, sensorCell->note, sensorCell->channel);
+          }
+        }
       }
 
       // send the note on if this in a newly calculated velocity

@@ -1029,7 +1029,7 @@ boolean handleXYZupdate() {
 
       // if Y-axis movements are enabled and it's a candidate for
       // X/Y expression based on the MIDI mode and the currently held down cells
-      if (Split[sensorSplit].sendY) {
+      if (valueY != INVALID_DATA && Split[sensorSplit].sendY) {
         if (hasYExpressiveNotes()) {
           preSendTimbre(sensorSplit, valueY, sensorCell->note, sensorCell->channel);
         }
